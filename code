@@ -1,0 +1,62 @@
+#This code exists for services where that don't have native option to only use a endpoint anda a json instruction or don't work the way you want!
+
+
+##Bibliotecas necessárias
+##Needed bib
+#pip install requests
+#pip install cherrypy
+import json
+import requests
+import cherrypy
+
+#Personalisa mensagens de erro
+#Personalize error messages
+cod_erro = {"404":"Endereço não encontrado","500":"Erro interno no servidor! Verificar corpo da requisição."}
+
+class MyServer(object):
+  @cherrypy.expose
+  @cherrypy.tools.json_out()
+  @cherrypy.tools.json_in()
+
+#Essa rotina trata os dados da seguinte forma, o primeiro campo é o endpoint o segundo deve ser o json, este código aceita tanto em formato json nativo quanto em formato texto simples
+#The rotine use the receveived data in this way: first field it's the endpoint, second must be a jason, this code acepts both native, and plain text json.
+  def receive_data(self):
+      data = cherrypy.request.body
+      try:
+        data2 = eval(cherrypy.request.json)
+      except:
+        data2 = cherrypy.request.json
+      # Verifica se os campos necessários estão presentes
+      # Verifies if the fields are filled
+      if "url" not in data2 or "body" not in data2:
+          return "Campos faltando no JSON"
+      else:    
+          # Processa os dados aqui
+          # Process data here
+          url = data2.get("url")
+          body = data2.get("body")
+          try:
+            body = json.loads(body)
+          except:
+            body = data2.get("body")
+          print(f"Recebido: url={url}, body={body}")
+          # Monta a requisição post
+          # Set the post requisition
+          envio_post = requests.post(url, json = body)
+          codigo_status = envio_post.status_code
+          desc_status = cod_erro.get(codigo_status,'Outros Erros')
+          if codigo_status == 200:
+            resultado = envio_post.json()
+            print(resultado)
+          else: 
+            #resultado = f"Erro de Envio! Código {codigo_status}, Descrição {desc_status}"
+            resultado = envio_post.json()
+      return resultado
+
+#Publica o serviço
+# Deploy server
+if __name__ == '__main__':
+    cherrypy.config.update({'server.socket_host': '127.0.0.1',
+                            'server.socket_port': 8000})
+    cherrypy.response.headers['Content-Type']='text/xml; charset=utf-8' 
+    cherrypy.quickstart(MyServer())
